@@ -1,0 +1,417 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  username     String      @unique
+  passwordHash String
+  createdAt    DateTime    @default(now())
+  character    Character?
+  messages     ChatMessage[]
+  clanMember   ClanMember?
+  listings     AuctionListing[]
+  sentMail     MailMessage[] @relation("MailSender")
+  receivedMail MailMessage[] @relation("MailRecipient")
+  friendshipsA Friendship[] @relation("FriendA")
+  friendshipsB Friendship[] @relation("FriendB")
+  sentGifts    PlayerGift[] @relation("GiftSender")
+  receivedGifts PlayerGift[] @relation("GiftRecipient")
+  sentDirectMessages DirectMessage[] @relation("DirectSender")
+  receivedDirectMessages DirectMessage[] @relation("DirectRecipient")
+  worldLocation PlayerLocation?
+  eventParticipations WorldEventParticipant[]
+  worldActivity WorldActivity?
+}
+
+model Character {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level       Int      @default(1)
+  classCode   String   @default("warrior")
+  classChosen Boolean  @default(false)
+  skillPoints Int      @default(0)
+  skillAttack Int      @default(0)
+  skillDefense Int     @default(0)
+  skillVitality Int    @default(0)
+  experience  Int      @default(0)
+  gold        Int      @default(1000)
+  gems        Int      @default(25)
+  hp          Int      @default(1000)
+  maxHp       Int      @default(1000)
+  attack      Int      @default(100)
+  defense     Int      @default(50)
+  petCode     String   @default("wolf_cub")
+  runeCode    String   @default("power_rune")
+  artifactCode String  @default("ember_relic")
+  weaponCode   String   @default("rusty_sword")
+  helmetCode   String   @default("cloth_hood")
+  armorCode    String   @default("traveler_vest")
+  glovesCode   String   @default("worn_gloves")
+  bootsCode    String   @default("leather_boots")
+  amuletCode   String   @default("copper_amulet")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       InventoryItem[]
+  quests      QuestProgress[]
+}
+
+model InventoryItem {
+  id          String    @id @default(cuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  code        String
+  quantity    Int       @default(1)
+  rarity      String    @default("common")
+  enhancement Int       @default(0)
+  createdAt   DateTime  @default(now())
+  @@unique([characterId, code])
+}
+
+model QuestProgress {
+  id          String    @id @default(cuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  questCode   String
+  progress    Int       @default(0)
+  claimed     Boolean   @default(false)
+  @@unique([characterId, questCode])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username  String
+  channel   String   @default("global")
+  message   String
+  createdAt DateTime @default(now())
+  @@index([channel, createdAt])
+}
+
+
+model Clan {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  description String       @default("")
+  level       Int          @default(1)
+  createdAt   DateTime     @default(now())
+  members     ClanMember[]
+  warsStarted ClanWar[] @relation("WarAttacker")
+  warsTargeted ClanWar[] @relation("WarDefender")
+  territories Territory[]
+  allianceMembership AllianceMember[]
+  siegesAsAttacker CastleSiege[] @relation("SiegeAttacker")
+  siegesAsDefender CastleSiege[] @relation("SiegeDefender")
+}
+
+model ClanMember {
+  id        String   @id @default(cuid())
+  clanId    String
+  clan      Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("member")
+  joinedAt  DateTime @default(now())
+  @@index([clanId, joinedAt])
+}
+
+model AuctionListing {
+  id        String   @id @default(cuid())
+  sellerId  String
+  seller    User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  itemCode  String
+  quantity  Int
+  price     Int
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  @@index([status, createdAt])
+}
+
+model WorldBoss {
+  id        String   @id
+  name      String
+  hp        Int
+  maxHp     Int
+  updatedAt DateTime @updatedAt
+  hits      BossHit[]
+}
+
+model BossHit {
+  id        String    @id @default(cuid())
+  bossId    String
+  boss      WorldBoss @relation(fields: [bossId], references: [id], onDelete: Cascade)
+  userId    String
+  username  String
+  damage    Int
+  createdAt DateTime  @default(now())
+  @@index([bossId, createdAt])
+}
+
+
+model DungeonRun {
+  id        String   @id @default(cuid())
+  code      String   @default("ash_catacombs")
+  phase     Int      @default(1)
+  bossHp    Int      @default(50000)
+  maxBossHp Int      @default(50000)
+  status    String   @default("forming")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  members   DungeonMember[]
+  @@index([status, createdAt])
+}
+
+model DungeonMember {
+  id        String     @id @default(cuid())
+  runId     String
+  run       DungeonRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  userId    String
+  username  String
+  damage    Int        @default(0)
+  claimed   Boolean    @default(false)
+  joinedAt  DateTime   @default(now())
+  @@unique([runId, userId])
+  @@index([runId, damage])
+}
+
+
+model Territory {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String   @default("")
+  ownerClanId String?
+  ownerClan   Clan?    @relation(fields: [ownerClanId], references: [id], onDelete: SetNull)
+  capturedAt  DateTime?
+  createdAt   DateTime @default(now())
+  wars        ClanWar[]
+  sieges      CastleSiege[]
+}
+
+model ClanWar {
+  id              String   @id @default(cuid())
+  attackerClanId  String
+  attackerClan    Clan     @relation("WarAttacker", fields: [attackerClanId], references: [id], onDelete: Cascade)
+  defenderClanId  String
+  defenderClan    Clan     @relation("WarDefender", fields: [defenderClanId], references: [id], onDelete: Cascade)
+  territoryId     String
+  territory       Territory @relation(fields: [territoryId], references: [id], onDelete: Cascade)
+  attackerScore   Int      @default(0)
+  defenderScore   Int      @default(0)
+  status          String   @default("active")
+  winnerClanId    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([status, createdAt])
+}
+
+
+model Alliance {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  createdAt   DateTime @default(now())
+  members     AllianceMember[]
+}
+
+model AllianceMember {
+  id          String   @id @default(cuid())
+  allianceId  String
+  alliance    Alliance @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+  clanId      String   @unique
+  clan        Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  role        String   @default("member")
+  joinedAt    DateTime @default(now())
+  @@index([allianceId, joinedAt])
+}
+
+model CastleSiege {
+  id              String   @id @default(cuid())
+  territoryId     String
+  territory       Territory @relation(fields: [territoryId], references: [id], onDelete: Cascade)
+  attackerClanId  String
+  attackerClan    Clan     @relation("SiegeAttacker", fields: [attackerClanId], references: [id], onDelete: Cascade)
+  defenderClanId  String
+  defenderClan    Clan     @relation("SiegeDefender", fields: [defenderClanId], references: [id], onDelete: Cascade)
+  gateHp          Int      @default(10000)
+  maxGateHp       Int      @default(10000)
+  wallHp          Int      @default(20000)
+  maxWallHp       Int      @default(20000)
+  attackerScore   Int      @default(0)
+  defenderScore   Int      @default(0)
+  status          String   @default("active")
+  winnerClanId    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([status, createdAt])
+}
+
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userAId   String
+  userA     User     @relation("FriendA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId   String
+  userB     User     @relation("FriendB", fields: [userBId], references: [id], onDelete: Cascade)
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  @@unique([userAId, userBId])
+  @@index([userBId, status])
+}
+
+model MailMessage {
+  id          String   @id @default(cuid())
+  senderId    String
+  sender      User     @relation("MailSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User     @relation("MailRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  subject     String
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+  @@index([recipientId, createdAt])
+}
+
+model PlayerGift {
+  id          String   @id @default(cuid())
+  senderId    String
+  sender      User     @relation("GiftSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User     @relation("GiftRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  itemCode    String?
+  quantity    Int      @default(0)
+  gold        Int      @default(0)
+  claimed     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  @@index([recipientId, claimed, createdAt])
+}
+
+model DirectMessage {
+  id          String   @id @default(cuid())
+  senderId    String
+  sender      User     @relation("DirectSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User     @relation("DirectRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  body        String
+  createdAt   DateTime @default(now())
+  @@index([senderId, recipientId, createdAt])
+}
+
+
+model WorldLocation {
+  code        String   @id
+  name        String
+  description String
+  minLevel    Int      @default(1)
+  x           Int
+  y           Int
+  createdAt   DateTime @default(now())
+}
+
+model PlayerLocation {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location  String   @default("crossroads")
+  updatedAt DateTime @updatedAt
+}
+
+model WorldEvent {
+  id          String   @id @default(cuid())
+  code        String
+  title       String
+  description String
+  rewardGold  Int      @default(0)
+  rewardExp   Int      @default(0)
+  status      String   @default("active")
+  startsAt    DateTime @default(now())
+  endsAt      DateTime
+  participants WorldEventParticipant[]
+  @@index([status, endsAt])
+}
+
+model WorldEventParticipant {
+  id        String     @id @default(cuid())
+  eventId   String
+  event     WorldEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  claimedAt DateTime?
+  @@unique([eventId, userId])
+}
+
+model WorldActivity {
+  userId       String   @id
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastHuntAt   DateTime?
+  lastGatherAt DateTime?
+}
+
+model WorldBossSpawn {
+  id          String   @id @default(cuid())
+  location    String   @unique
+  bossCode    String
+  name        String
+  hp          Int
+  maxHp       Int
+  expiresAt   DateTime
+  contributions WorldBossContribution[]
+  createdAt   DateTime @default(now())
+}
+
+model WorldBossContribution {
+  id        String   @id @default(cuid())
+  spawnId   String
+  spawn     WorldBossSpawn @relation(fields: [spawnId], references: [id], onDelete: Cascade)
+  userId    String
+  damage    Int      @default(0)
+  claimed   Boolean  @default(false)
+  @@unique([spawnId, userId])
+}
+
+model PlayerDuel {
+  id           String   @id @default(cuid())
+  challengerId String
+  targetId     String
+  status       String   @default("pending")
+  challengerHp Int      @default(0)
+  targetHp     Int      @default(0)
+  turnUserId   String?
+  winnerId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@index([challengerId, status])
+  @@index([targetId, status])
+}
+
+model GuildRaid {
+  id          String   @id @default(cuid())
+  code        String
+  name        String
+  hp          Int
+  maxHp       Int
+  status      String   @default("active")
+  rewardGold  Int
+  rewardExp   Int
+  createdAt   DateTime @default(now())
+  endsAt      DateTime
+  contributions GuildRaidContribution[]
+}
+
+model GuildRaidContribution {
+  id        String   @id @default(cuid())
+  raidId    String
+  raid      GuildRaid @relation(fields: [raidId], references: [id], onDelete: Cascade)
+  clanId    String
+  userId    String
+  damage    Int      @default(0)
+  claimed   Boolean  @default(false)
+  @@unique([raidId, userId])
+  @@index([raidId, clanId])
+}

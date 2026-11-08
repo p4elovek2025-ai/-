@@ -1,0 +1,17 @@
+{
+  "name": "WarAxe Mobile",
+  "short_name": "WarAxe",
+  "description": "Dark fantasy mobile RPG",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#100d0c",
+  "theme_color": "#100d0c",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
